@@ -1,5 +1,7 @@
 const $ = (s) => document.querySelector(s);
 
+const API_URL = "https://projeto-pi-6yop.onrender.com";
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -16,12 +18,17 @@ function setMsg(text, type) {
 }
 
 async function api(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(API_URL + path, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
+
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Erro HTTP ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(data?.error || `Erro HTTP ${res.status}`);
+  }
+
   return data;
 }
 
@@ -45,6 +52,7 @@ async function carregar() {
 
 $("#btnRecarregar").addEventListener("click", () => {
   setMsg("Recarregando...", "");
+
   carregar()
     .then(() => setMsg("", ""))
     .catch((e) => setMsg(e.message, "err"));
@@ -52,7 +60,9 @@ $("#btnRecarregar").addEventListener("click", () => {
 
 $("#form").addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const nome = $("#nome").value.trim();
+
   if (!nome) {
     setMsg("Digite um nome antes de cadastrar.", "err");
     return;
@@ -65,7 +75,9 @@ $("#form").addEventListener("submit", async (e) => {
     });
 
     $("#nome").value = "";
+
     setMsg("Cadastrado com sucesso.", "ok");
+
     await carregar();
   } catch (err) {
     setMsg(err.message, "err");
