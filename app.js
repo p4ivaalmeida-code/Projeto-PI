@@ -3,7 +3,9 @@ const $ = (s) => document.querySelector(s);
 const API_URL = "https://projeto-pi-6yop.onrender.com";
 
 function escapeHtml(str) {
+
   return String(str)
+
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -12,26 +14,45 @@ function escapeHtml(str) {
 }
 
 function setMsg(text, type) {
+
   const el = $("#msg");
 
-  el.className = "msg " + (type || "");
+  el.className =
+    "msg " + (type || "");
 
-  el.textContent = text || "";
+  el.textContent =
+    text || "";
 }
 
-async function api(path, options = {}) {
+async function api(
+  path,
+  options = {}
+) {
 
-  const res = await fetch(API_URL + path, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
+  const res = await fetch(
 
-  const data = await res.json().catch(() => ({}));
+    API_URL + path,
+
+    {
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      ...options,
+    }
+  );
+
+  const data =
+    await res.json()
+      .catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(data?.error || `Erro HTTP ${res.status}`);
+
+    throw new Error(
+      data?.error ||
+      `Erro HTTP ${res.status}`
+    );
   }
 
   return data;
@@ -39,107 +60,202 @@ async function api(path, options = {}) {
 
 async function carregar() {
 
-  const empresas = await api("/api/empresas");
+  const empresas =
+    await api("/api/empresas");
 
   $("#contador").textContent =
     `${empresas.length} empresa(s)`;
 
-  $("#tbody").innerHTML = empresas
-    .map(
-      (e) => `
-      <tr>
-        <td>${e.id}</td>
+  $("#tbody").innerHTML =
+    empresas
+      .map(
 
-        <td>
-          ${escapeHtml(e.nome)}
-        </td>
+        (e) => `
 
-        <td>
-          <span class="badge">
-            ${escapeHtml(e.nome_normalizado)}
-          </span>
-        </td>
-      </tr>
-    `
-    )
-    .join("");
+        <tr>
+
+          <td>
+            ${e.id}
+          </td>
+
+          <td>
+            ${escapeHtml(e.nome)}
+          </td>
+
+          <td>
+
+            <span class="badge">
+              ${escapeHtml(e.nome_normalizado)}
+            </span>
+
+          </td>
+
+        </tr>
+      `
+      )
+      .join("");
 }
 
-$("#btnRecarregar").addEventListener("click", () => {
+$("#btnRecarregar")
+  .addEventListener(
 
-  setMsg("Recarregando...", "");
+    "click",
 
-  carregar()
-    .then(() => setMsg("", ""))
-    .catch((e) => setMsg(e.message, "err"));
-});
+    () => {
 
-$("#form").addEventListener("submit", async (e) => {
+      setMsg(
+        "Recarregando...",
+        ""
+      );
 
-  e.preventDefault();
+      carregar()
 
-  const nome = $("#nome").value.trim();
+        .then(() =>
+          setMsg("", "")
+        )
 
-  if (!nome) {
-
-    setMsg(
-      "Digite um nome antes de cadastrar.",
-      "err"
-    );
-
-    return;
-  }
-
-  try {
-
-    const resposta = await api("/api/empresas", {
-
-      method: "POST",
-
-      body: JSON.stringify({
-        nome
-      }),
-
-    });
-
-    $("#nome").value = "";
-
-    // VERIFICA DUPLICIDADE
-    if (resposta.duplicada) {
-
-      const listaDuplicatas =
-        resposta.possiveis_duplicatas
-          .map(
-            (d) =>
-              `${d.nome} (${d.similaridade}%)`
+        .catch((e) =>
+          setMsg(
+            e.message,
+            "err"
           )
-          .join(" | ");
-
-      setMsg(
-        `⚠ Empresa possivelmente duplicada: ${listaDuplicatas}`,
-        "err"
-      );
-
-    } else {
-
-      setMsg(
-        "Cadastrado com sucesso.",
-        "ok"
-      );
+        );
     }
+  );
 
-    await carregar();
+$("#form")
+  .addEventListener(
 
-  } catch (err) {
+    "submit",
 
-    setMsg(
-      err.message,
-      "err"
-    );
-  }
-});
+    async (e) => {
+
+      e.preventDefault();
+
+      const nome =
+        $("#nome")
+          .value
+          .trim();
+
+      if (!nome) {
+
+        setMsg(
+          "Digite um nome antes de cadastrar.",
+          "err"
+        );
+
+        return;
+      }
+
+      try {
+
+        const resposta =
+          await api(
+
+            "/api/empresas",
+
+            {
+              method: "POST",
+
+              body: JSON.stringify({
+                nome
+              }),
+            }
+          );
+
+        $("#nome").value = "";
+
+        // VERIFICA DUPLICIDADE
+
+        if (resposta.duplicada) {
+
+          const listaDuplicatas =
+
+            resposta
+              .possiveis_duplicatas
+
+              .map(
+                (d) =>
+                  `${d.nome} (${d.similaridade}%)`
+              )
+
+              .join(" | ");
+
+          setMsg(
+
+            `⚠ Empresa possivelmente duplicada: ${listaDuplicatas}`,
+
+            "err"
+          );
+
+        } else {
+
+          setMsg(
+            "Cadastrado com sucesso.",
+            "ok"
+          );
+        }
+
+        await carregar();
+
+      } catch (err) {
+
+        setMsg(
+          err.message,
+          "err"
+        );
+      }
+    }
+  );
+
+// BOTÃO RESETAR BANCO
+
+$("#btnReset")
+  .addEventListener(
+
+    "click",
+
+    async () => {
+
+      const confirmar =
+        confirm(
+          "Tem certeza que deseja apagar TODAS as empresas?"
+        );
+
+      if (!confirmar) return;
+
+      try {
+
+        await api(
+          "/api/empresas/reset",
+          {
+            method: "DELETE"
+          }
+        );
+
+        setMsg(
+          "Banco resetado com sucesso.",
+          "ok"
+        );
+
+        await carregar();
+
+      } catch (err) {
+
+        setMsg(
+          err.message,
+          "err"
+        );
+      }
+    }
+  );
 
 carregar()
+
   .catch((e) =>
-    setMsg(e.message, "err")
+
+    setMsg(
+      e.message,
+      "err"
+    )
   );
