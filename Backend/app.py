@@ -92,7 +92,7 @@ def criar_empresa():
             similaridade = round(score * 100, 2)
 
             # empresas similares acima de 70%
-            if similaridade >= 70:
+            if similaridade >= 55:
 
                 duplicatas.append({
                     "id": emp["id"],
