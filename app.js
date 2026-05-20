@@ -1,6 +1,12 @@
 const $ = (s) => document.querySelector(s);
 
-const API_URL = "https://projeto-pi-6yop.onrender.com";
+const API_URL =
+  "https://projeto-pi-6yop.onrender.com";
+
+
+// =========================
+// ESCAPE HTML
+// =========================
 
 function escapeHtml(str) {
 
@@ -13,6 +19,11 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
+
+// =========================
+// MENSAGENS
+// =========================
+
 function setMsg(text, type) {
 
   const el = $("#msg");
@@ -23,6 +34,11 @@ function setMsg(text, type) {
   el.textContent =
     text || "";
 }
+
+
+// =========================
+// API
+// =========================
 
 async function api(
   path,
@@ -58,6 +74,11 @@ async function api(
   return data;
 }
 
+
+// =========================
+// CARREGAR EMPRESAS
+// =========================
+
 async function carregar() {
 
   const empresas =
@@ -66,37 +87,85 @@ async function carregar() {
   $("#contador").textContent =
     `${empresas.length} empresa(s)`;
 
+
   $("#tbody").innerHTML =
+
     empresas
-      .map(
 
-        (e) => `
+      .map((e) => {
 
-        <tr>
+        const duplicada =
+          e.duplicada;
+
+        const similaridade =
+          e.maior_similaridade || 0;
+
+        return `
+
+        <tr class="${
+          duplicada
+            ? "linha-duplicada"
+            : ""
+        }">
 
           <td>
             ${e.id}
           </td>
 
           <td>
+
             ${escapeHtml(e.nome)}
+
+            ${
+              duplicada
+                ? `
+                <div class="duplicada-label">
+                  Possível duplicata
+                </div>
+                `
+                : ""
+            }
+
           </td>
 
           <td>
 
             <span class="badge">
-              ${escapeHtml(e.nome_normalizado)}
+              ${escapeHtml(
+                e.nome_normalizado
+              )}
             </span>
 
           </td>
 
+          <td>
+
+            ${
+              duplicada
+                ? `
+                  <span class="similaridade">
+                    ${similaridade}%
+                  </span>
+                `
+                : "-"
+            }
+
+          </td>
+
         </tr>
-      `
-      )
+        `;
+      })
+
       .join("");
 }
 
+
+// =========================
+// BOTÃO RECARREGAR
+// =========================
+
 $("#btnRecarregar")
+
   .addEventListener(
 
     "click",
@@ -123,7 +192,13 @@ $("#btnRecarregar")
     }
   );
 
+
+// =========================
+// FORMULÁRIO
+// =========================
+
 $("#form")
+
   .addEventListener(
 
     "submit",
@@ -133,6 +208,7 @@ $("#form")
       e.preventDefault();
 
       const nome =
+
         $("#nome")
           .value
           .trim();
@@ -140,7 +216,9 @@ $("#form")
       if (!nome) {
 
         setMsg(
+
           "Digite um nome antes de cadastrar.",
+
           "err"
         );
 
@@ -150,6 +228,7 @@ $("#form")
       try {
 
         const resposta =
+
           await api(
 
             "/api/empresas",
@@ -165,7 +244,7 @@ $("#form")
 
         $("#nome").value = "";
 
-        // VERIFICA DUPLICIDADE
+        // DUPLICIDADE
 
         if (resposta.duplicada) {
 
@@ -208,26 +287,32 @@ $("#form")
     }
   );
 
-// BOTÃO RESETAR BANCO
+
+// =========================
+// RESETAR BANCO
+// =========================
 
 $("#btnReset")
+
   .addEventListener(
 
     "click",
 
     async () => {
 
-      const confirmar =
-        confirm(
-          "Tem certeza que deseja apagar TODAS as empresas?"
-        );
+      const confirmar = confirm(
+
+        "Tem certeza que deseja apagar TODAS as empresas?"
+      );
 
       if (!confirmar) return;
 
       try {
 
         await api(
+
           "/api/empresas/reset",
+
           {
             method: "DELETE"
           }
@@ -249,6 +334,11 @@ $("#btnReset")
       }
     }
   );
+
+
+// =========================
+// INICIAR
+// =========================
 
 carregar()
 
