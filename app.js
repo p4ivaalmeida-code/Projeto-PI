@@ -13,13 +13,18 @@ function escapeHtml(str) {
 
 function setMsg(text, type) {
   const el = $("#msg");
+
   el.className = "msg " + (type || "");
+
   el.textContent = text || "";
 }
 
 async function api(path, options = {}) {
+
   const res = await fetch(API_URL + path, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
     ...options,
   });
 
@@ -33,17 +38,27 @@ async function api(path, options = {}) {
 }
 
 async function carregar() {
+
   const empresas = await api("/api/empresas");
 
-  $("#contador").textContent = `${empresas.length} empresa(s)`;
+  $("#contador").textContent =
+    `${empresas.length} empresa(s)`;
 
   $("#tbody").innerHTML = empresas
     .map(
       (e) => `
       <tr>
         <td>${e.id}</td>
-        <td>${escapeHtml(e.nome)}</td>
-        <td><span class="badge">${escapeHtml(e.nome_normalizado)}</span></td>
+
+        <td>
+          ${escapeHtml(e.nome)}
+        </td>
+
+        <td>
+          <span class="badge">
+            ${escapeHtml(e.nome_normalizado)}
+          </span>
+        </td>
       </tr>
     `
     )
@@ -51,6 +66,7 @@ async function carregar() {
 }
 
 $("#btnRecarregar").addEventListener("click", () => {
+
   setMsg("Recarregando...", "");
 
   carregar()
@@ -59,29 +75,71 @@ $("#btnRecarregar").addEventListener("click", () => {
 });
 
 $("#form").addEventListener("submit", async (e) => {
+
   e.preventDefault();
 
   const nome = $("#nome").value.trim();
 
   if (!nome) {
-    setMsg("Digite um nome antes de cadastrar.", "err");
+
+    setMsg(
+      "Digite um nome antes de cadastrar.",
+      "err"
+    );
+
     return;
   }
 
   try {
-    await api("/api/empresas", {
+
+    const resposta = await api("/api/empresas", {
+
       method: "POST",
-      body: JSON.stringify({ nome }),
+
+      body: JSON.stringify({
+        nome
+      }),
+
     });
 
     $("#nome").value = "";
 
-    setMsg("Cadastrado com sucesso.", "ok");
+    // VERIFICA DUPLICIDADE
+    if (resposta.duplicada) {
+
+      const listaDuplicatas =
+        resposta.possiveis_duplicatas
+          .map(
+            (d) =>
+              `${d.nome} (${d.similaridade}%)`
+          )
+          .join(" | ");
+
+      setMsg(
+        `⚠ Empresa possivelmente duplicada: ${listaDuplicatas}`,
+        "err"
+      );
+
+    } else {
+
+      setMsg(
+        "Cadastrado com sucesso.",
+        "ok"
+      );
+    }
 
     await carregar();
+
   } catch (err) {
-    setMsg(err.message, "err");
+
+    setMsg(
+      err.message,
+      "err"
+    );
   }
 });
 
-carregar().catch((e) => setMsg(e.message, "err"));
+carregar()
+  .catch((e) =>
+    setMsg(e.message, "err")
+  );
