@@ -140,3 +140,17 @@ if __name__ == "__main__":
         port=port,
         debug=False
     )
+@app.delete("/api/empresas/reset")
+def resetar_empresas():
+
+    with get_conn() as conn:
+
+        conn.execute("DELETE FROM empresas")
+
+        conn.execute("DELETE FROM sqlite_sequence WHERE name='empresas'")
+
+        conn.commit()
+
+    return jsonify({
+        "message": "Banco resetado com sucesso"
+    })
