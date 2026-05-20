@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cadastro de empresas</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="title">Cadastro de empresas</h1>
+      <p class="subtitle">Protótipo PI — Front (HTML/JS) + Back (Flask) + SQLite (DB Browser)</p>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <div class="badge" id="contador">0 empresas</div>
+          </div>
+          <button type="button" id="btnRecarregar">Recarregar</button>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border);margin:12px 0;">
+
+        <form id="form" class="row">
+          <div>
+            <label for="nome">Nome da empresa</label>
+            <input id="nome" placeholder="Ex.: Mercado Sociedade Anônima" autocomplete="off" />
+          </div>
+          <div style="padding-top:22px;">
+            <button type="submit">Cadastrar</button>
+          </div>
+        </form>
+
+        <div class="msg" id="msg"></div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:80px;">ID</th>
+              <th>Nome</th>
+              <th style="width:220px;">Normalizado</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+
+        <div class="footer">
+          Dica: o banco fica em <b>Backend\Data\empresas.sqlite3</b> para abrir no DB Browser.
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
