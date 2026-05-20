@@ -133,3 +133,18 @@ button:hover{ filter: brightness(1.06); }
   color: var(--muted);
   font-size: 12px;
 }
+
+.danger {
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-left: 10px;
+}
+
+.danger:hover {
+  opacity: 0.9;
+}
