@@ -1,19 +1,29 @@
+import os
 from pathlib import Path
+
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 
 from db import get_conn, init_db
-
-from difflib import SequenceMatcher
-
-import difflib
-import os
+from matching import LIMIAR_PADRAO, buscar_similares, normalizar
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = (BASE_DIR.parent / "Frontend").resolve()
 
+# A partir de quantos % um nome é considerado possível duplicata
+LIMIAR = float(os.environ.get("LIMIAR", LIMIAR_PADRAO))
+
 app = Flask(__name__)
 CORS(app)
+
+
+def _registros(conn):
+    # Lê todas as empresas do banco (base + cadastros)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, nome, nome_normalizado, criado_em, origem, pais FROM empresas"
+    )
+    return [dict(r) for r in cur.fetchall()]
 
 
 # =========================
@@ -22,20 +32,12 @@ CORS(app)
 
 @app.get("/")
 def home():
-
-    return send_from_directory(
-        str(FRONTEND_DIR),
-        "index.html"
-    )
+    return send_from_directory(str(FRONTEND_DIR), "index.html")
 
 
 @app.get("/<path:arquivo>")
 def arquivos_front(arquivo):
-
-    return send_from_directory(
-        str(FRONTEND_DIR),
-        arquivo
-    )
+    return send_from_directory(str(FRONTEND_DIR), arquivo)
 
 
 # =========================
@@ -44,67 +46,26 @@ def arquivos_front(arquivo):
 
 @app.get("/api/empresas")
 def listar_empresas():
-
     with get_conn() as conn:
+        empresas = _registros(conn)
 
-        cur = conn.cursor()
-
-        cur.execute(
-            """
-            SELECT
-                id,
-                nome,
-                nome_normalizado,
-                criado_em,
-                origem,
-                pais
-            FROM empresas
-            ORDER BY id DESC
-            """
+    # Só os cadastros feitos pelo usuário são conferidos contra todos os
+    # outros registros (inclusive a base de grandes empresas).
+    for emp in empresas:
+        emp["duplicada"] = False
+        emp["maior_similaridade"] = 0
+        emp["parecida_com"] = None
+        if emp["origem"] != "cadastro":
+            continue
+        similares = buscar_similares(
+            emp["nome"], empresas, LIMIAR, ignorar_id=emp["id"]
         )
+        if similares:
+            emp["duplicada"] = True
+            emp["maior_similaridade"] = similares[0]["similaridade"]
+            emp["parecida_com"] = similares[0]["nome"]
 
-        rows = cur.fetchall()
-
-    empresas = [dict(r) for r in rows]
-
-    # =========================
-    # VERIFICA SIMILARIDADE
-    # =========================
-
-    for empresa in empresas:
-
-        empresa["duplicada"] = False
-        empresa["maior_similaridade"] = 0
-
-        for outra in empresas:
-
-            if empresa["id"] == outra["id"]:
-                continue
-
-            similaridade = SequenceMatcher(
-                None,
-                empresa["nome_normalizado"],
-                outra["nome_normalizado"]
-            ).ratio()
-
-            similaridade_percentual = round(
-                similaridade * 100,
-                2
-            )
-
-            if similaridade_percentual >= 60:
-
-                empresa["duplicada"] = True
-
-                if (
-                    similaridade_percentual >
-                    empresa["maior_similaridade"]
-                ):
-
-                    empresa["maior_similaridade"] = (
-                        similaridade_percentual
-                    )
-
+    empresas.sort(key=lambda e: e["id"], reverse=True)
     return jsonify(empresas)
 
 
@@ -114,117 +75,34 @@ def listar_empresas():
 
 @app.post("/api/empresas")
 def criar_empresa():
-
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-    nome = (
-        data.get("nome") or ""
-    ).strip()
+    data = request.get_json(silent=True) or {}
+    nome = (data.get("nome") or "").strip()
 
     if not nome:
+        return jsonify({"error": "Campo 'nome' é obrigatório"}), 400
 
-        return jsonify({
-            "error":
-            "Campo 'nome' é obrigatório"
-        }), 400
-
-    # NORMALIZAÇÃO
-
-    nome_norm = " ".join(
-        nome.lower().split()
-    )
+    nome_norm = normalizar(nome)
 
     with get_conn() as conn:
+        # Confere ANTES de cadastrar: base de grandes empresas + cadastros
+        duplicatas = buscar_similares(nome, _registros(conn), LIMIAR)
 
         cur = conn.cursor()
-
         cur.execute(
-            """
-            SELECT
-                id,
-                nome,
-                nome_normalizado
-            FROM empresas
-            """
+            "INSERT INTO empresas (nome, nome_normalizado, origem) "
+            "VALUES (%s, %s, 'cadastro') RETURNING id",
+            (nome, nome_norm),
         )
-
-        empresas = cur.fetchall()
-
-        duplicatas = []
-
-        for emp in empresas:
-
-            score = difflib.SequenceMatcher(
-                None,
-                nome_norm,
-                emp["nome_normalizado"]
-            ).ratio()
-
-            similaridade = round(
-                score * 100,
-                2
-            )
-
-            # EMPRESAS SIMILARES
-
-            if similaridade >= 55:
-
-                duplicatas.append({
-
-                    "id":
-                    emp["id"],
-
-                    "nome":
-                    emp["nome"],
-
-                    "nome_normalizado":
-                    emp["nome_normalizado"],
-
-                    "similaridade":
-                    similaridade
-                })
-
-        # CADASTRA NORMALMENTE
-
-        cur.execute(
-            """
-            INSERT INTO empresas (
-                nome,
-                nome_normalizado,
-                origem
-            )
-            VALUES (%s, %s, 'cadastro')
-            RETURNING id
-            """,
-            (
-                nome,
-                nome_norm
-            )
-        )
-
         novo_id = cur.fetchone()["id"]
-
         conn.commit()
 
     return jsonify({
-
-        "id":
-        novo_id,
-
-        "nome":
-        nome,
-
-        "nome_normalizado":
-        nome_norm,
-
-        "duplicada":
-        len(duplicatas) > 0,
-
-        "possiveis_duplicatas":
-        duplicatas
-
+        "id": novo_id,
+        "nome": nome,
+        "nome_normalizado": nome_norm,
+        "limiar": LIMIAR,
+        "duplicada": len(duplicatas) > 0,
+        "possiveis_duplicatas": duplicatas,
     }), 201
 
 
@@ -234,23 +112,14 @@ def criar_empresa():
 
 @app.delete("/api/empresas/reset")
 def resetar_empresas():
-
-    # Apaga só os cadastros feitos pelo usuário.
-    # A base de grandes empresas (origem = 'base') é mantida.
-
+    # Apaga só os cadastros do usuário; a base de grandes empresas é mantida
     with get_conn() as conn:
-
         cur = conn.cursor()
-
-        cur.execute(
-            "DELETE FROM empresas WHERE origem = 'cadastro'"
-        )
-
+        cur.execute("DELETE FROM empresas WHERE origem = 'cadastro'")
         conn.commit()
 
     return jsonify({
-        "message":
-        "Cadastros apagados. A base de grandes empresas foi mantida."
+        "message": "Cadastros apagados. A base de grandes empresas foi mantida."
     })
 
 
@@ -259,18 +128,6 @@ def resetar_empresas():
 # =========================
 
 if __name__ == "__main__":
-
     init_db()
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            5000
-        )
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False
-    )
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
