@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from difflib import SequenceMatcher
 
 # Palavras que não ajudam a identificar a empresa (formas jurídicas)
 SUFIXOS = {
@@ -31,3 +32,34 @@ def normalizar(nome):
 
     # se sobrou nada (o nome era só "Inc"), usa a versão simples
     return resultado or normalizar_simples(nome)
+
+# A partir de quantos % o nome é considerado parecido
+LIMIAR_PADRAO = 70.0
+
+
+def similaridade(a, b):
+    # Compara dois nomes já normalizados e devolve um número de 0 a 100
+    if not a or not b:
+        return 0.0
+    return round(SequenceMatcher(None, a, b).ratio() * 100, 2)
+
+
+def buscar_similares(nome, registros, limiar=LIMIAR_PADRAO, ignorar_id=None):
+    # Compara "nome" com cada empresa da lista e devolve as parecidas
+    alvo = normalizar(nome)
+    encontrados = []
+    for reg in registros:
+        if ignorar_id is not None and reg["id"] == ignorar_id:
+            continue
+        score = similaridade(alvo, normalizar(reg["nome"]))
+        if score >= limiar:
+            encontrados.append({
+                "id": reg["id"],
+                "nome": reg["nome"],
+                "origem": reg["origem"],
+                "pais": reg["pais"],
+                "similaridade": score,
+            })
+    encontrados.sort(key=lambda r: r["similaridade"], reverse=True)
+    return encontrados
+
