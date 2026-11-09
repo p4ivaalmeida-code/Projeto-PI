@@ -10,7 +10,7 @@
   <div class="container">
     <header class="header">
       <h1 class="title">Cadastro de empresas</h1>
-      <p class="subtitle">Protótipo PI — Front (HTML/JS) + Back (Flask) + SQLite (DB Browser)</p>
+      <p class="subtitle">Protótipo PI — Front (HTML/JS) + Back (Flask) + PostgreSQL</p>
     </header>
 
     <div class="grid">
@@ -19,7 +19,10 @@
           <div>
             <div class="badge" id="contador">0 empresas</div>
           </div>
-          <button type="button" id="btnRecarregar">Recarregar</button>
+          <div>
+            <button type="button" id="btnRecarregar">Recarregar</button>
+            <button type="button" id="btnReset" class="danger">Apagar cadastros</button>
+          </div>
         </div>
 
         <hr style="border:0;border-top:1px solid var(--border);margin:12px 0;">
@@ -42,13 +45,14 @@
               <th style="width:80px;">ID</th>
               <th>Nome</th>
               <th style="width:220px;">Normalizado</th>
+              <th style="width:160px;">Similaridade</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
 
         <div class="footer">
-          Dica: o banco fica em <b>Backend\Data\empresas.sqlite3</b> para abrir no DB Browser.
+          Dica: os dados ficam no PostgreSQL (banco <b>projetopi</b>), visível pelo pgAdmin.
         </div>
       </section>
     </div>

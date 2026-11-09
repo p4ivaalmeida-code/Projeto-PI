@@ -47,17 +47,23 @@ def listar_empresas():
 
     with get_conn() as conn:
 
-        rows = conn.execute(
+        cur = conn.cursor()
+
+        cur.execute(
             """
             SELECT
                 id,
                 nome,
                 nome_normalizado,
-                criado_em
+                criado_em,
+                origem,
+                pais
             FROM empresas
             ORDER BY id DESC
             """
-        ).fetchall()
+        )
+
+        rows = cur.fetchall()
 
     empresas = [dict(r) for r in rows]
 
@@ -132,7 +138,9 @@ def criar_empresa():
 
     with get_conn() as conn:
 
-        empresas = conn.execute(
+        cur = conn.cursor()
+
+        cur.execute(
             """
             SELECT
                 id,
@@ -140,7 +148,9 @@ def criar_empresa():
                 nome_normalizado
             FROM empresas
             """
-        ).fetchall()
+        )
+
+        empresas = cur.fetchall()
 
         duplicatas = []
 
@@ -178,13 +188,15 @@ def criar_empresa():
 
         # CADASTRA NORMALMENTE
 
-        cur = conn.execute(
+        cur.execute(
             """
             INSERT INTO empresas (
                 nome,
-                nome_normalizado
+                nome_normalizado,
+                origem
             )
-            VALUES (?, ?)
+            VALUES (%s, %s, 'cadastro')
+            RETURNING id
             """,
             (
                 nome,
@@ -192,12 +204,14 @@ def criar_empresa():
             )
         )
 
+        novo_id = cur.fetchone()["id"]
+
         conn.commit()
 
     return jsonify({
 
         "id":
-        cur.lastrowid,
+        novo_id,
 
         "nome":
         nome,
@@ -215,30 +229,28 @@ def criar_empresa():
 
 
 # =========================
-# RESETAR BANCO
+# RESETAR CADASTROS
 # =========================
 
 @app.delete("/api/empresas/reset")
 def resetar_empresas():
 
+    # Apaga só os cadastros feitos pelo usuário.
+    # A base de grandes empresas (origem = 'base') é mantida.
+
     with get_conn() as conn:
 
-        conn.execute(
-            "DELETE FROM empresas"
-        )
+        cur = conn.cursor()
 
-        conn.execute(
-            """
-            DELETE FROM sqlite_sequence
-            WHERE name='empresas'
-            """
+        cur.execute(
+            "DELETE FROM empresas WHERE origem = 'cadastro'"
         )
 
         conn.commit()
 
     return jsonify({
         "message":
-        "Banco resetado com sucesso"
+        "Cadastros apagados. A base de grandes empresas foi mantida."
     })
 
 
